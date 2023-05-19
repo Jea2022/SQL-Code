@@ -75,64 +75,73 @@ and death.date = vaccine.date
 where death.continent is not null
 order by 2,3
 
---use CTE
-with PopvsVac (continent, location, date, population, new_vaccination,
-Total_New_Vaccination)
+--calculating the percentage of people vaccinated
+--USE CTE
+
+with Percentage_of_Vaccination(continent, location, date, population, new_vaccinations,
+total_amount_of_vaccination)
 as
-(select death.continent, death.location, death.date, death.population, 
-vaccine.new_vaccinations,
-SUM(convert(float, vaccine.new_vaccinations)) OVER (partition by death.location order by 
-death.location)
-as Total_New_Vaccination
-from [Portfolio-Project]..['Covid-Deaths] death
-join [Portfolio-Project]..['Covid-Vaccination] vaccine
-on death.location = vaccine.location
-and death.date = vaccine.date
-where death.continent is not null
-)
-select *, (Total_New_Vaccination/population)*100 as PopulationPercentageVaccinated
-from PopvsVac
-
-
---temp table
-
-drop table if exists #PercentPopulationVaccinated
-create table #PercentPopulationVaccinated
 (
-Continent nvarchar(255),
-Location nvarchar(255),
-Date datetime,
-Population numeric,
-New_vaccination numeric,
-Total_New_Vaccination numeric
+select deaths.continent, deaths.location, deaths.date ,deaths.population, vaccine.new_vaccinations,
+SUM(convert(float, vaccine.new_vaccinations)) over 
+(partition by deaths.location order by deaths.location, deaths.date)
+as total_amount_of_vaccination
+from [Portfolio-Project]..['Covid-Deaths'] deaths
+join
+[Portfolio-Project]..['Covid-Vaccination'] vaccine
+on deaths.location = vaccine.location
+and deaths.date = vaccine.date
+where deaths.continent is not null
+--order by 2,3
+)
+select *, (total_amount_of_vaccination/population)*100 as Percentage_of_Vaccination
+from Percentage_of_Vaccination
+
+
+--TEMP TABLE
+
+Drop table if exists #Population_Vaccination_Percentage
+create table #Population_Vaccination_Percentage
+(
+continent nvarchar(255),
+location nvarchar(255),
+date datetime,
+population numeric,
+new_vaccinations nvarchar(255),
+total_amount_of_vaccination numeric
 )
 
-insert into #PercentPopulationVaccinated
-select death.continent, death.location, death.date, death.population, 
-vaccine.new_vaccinations as float, SUM(cast(vaccine.new_vaccinations as float))
-OVER (partition by death.location order by death.location) as Total_New_Vaccination
-from [Portfolio-Project]..['Covid-Deaths] death
-join [Portfolio-Project]..['Covid-Vaccination] vaccine
-on death.location = vaccine.location
-and death.date = vaccine.date
---where death.continent is not null
+insert into #Population_Vaccination_Percentage
+select deaths.continent, deaths.location, deaths.date ,deaths.population, vaccine.new_vaccinations,
+SUM(convert(float, vaccine.new_vaccinations)) over 
+(partition by deaths.location order by deaths.location, deaths.date)
+as total_amount_of_vaccination
+from [Portfolio-Project]..['Covid-Deaths'] deaths
+join
+[Portfolio-Project]..['Covid-Vaccination'] vaccine
+on deaths.location = vaccine.location
+and deaths.date = vaccine.date
+where deaths.continent is not null
+order by 2,3
 
-select *, (Total_New_Vaccination/population)*100 as PopulationPercentVaccinated
-from #PercentPopulationVaccinated
+select *, (total_amount_of_vaccination/population)*100 as Percentage_of_Vaccination
+from #Population_Vaccination_Percentage
 
+--Creating View to store data for later visualizations
 
---Creating View to store data for later visualization
-drop view if exists PercentPopulationVaccinated
+create view Population_Vaccination_Percentage as
+select deaths.continent, deaths.location, deaths.date ,deaths.population, vaccine.new_vaccinations,
+SUM(convert(float, vaccine.new_vaccinations)) over 
+(partition by deaths.location order by deaths.location, deaths.date)
+as total_amount_of_vaccination
+from [Portfolio-Project]..['Covid-Deaths'] deaths
+join
+[Portfolio-Project]..['Covid-Vaccination'] vaccine
+on deaths.location = vaccine.location
+and deaths.date = vaccine.date
+where deaths.continent is not null
+--order by 2,3
 
-create view PercentPopulationVaccinated as
-select death.continent, death.location, death.date, death.population, 
-vaccine.new_vaccinations as float, SUM(cast(vaccine.new_vaccinations as float))
-OVER (partition by death.location order by death.location) as Total_New_Vaccination
-from [Portfolio-Project]..['Covid-Deaths] death
-join [Portfolio-Project]..['Covid-Vaccination] vaccine
-on death.location = vaccine.location
-and death.date = vaccine.date
-where death.continent is not null
-
+--selecting view
 select *
-from #PercentPopulationVaccinated
+from Population_Vaccination_Percentage
